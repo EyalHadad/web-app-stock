@@ -53,11 +53,10 @@ if not df.empty:
             color = '#00C805' if val > 0 else '#FF4B4B' if val < 0 else 'gray'
             return f'color: {color}; font-weight: bold'
         
-        # תצוגת טבלה מעוצבת עם 2 ספרות אחרי הנקודה
-        st.dataframe(df.style.map(color_red_green, subset=['שינוי ($)', 'שינוי (%)'])
+       # תצוגת טבלה מעוצבת - הפעם אנחנו משמיטים את עמודת הצבע מהתצוגה!
+        st.dataframe(df.drop(columns=['color']).style.map(color_red_green, subset=['שינוי ($)', 'שינוי (%)'])
                      .format({"מחיר אחרון": "{:.2f}", "שינוי ($)": "{:.2f}", "שינוי (%)": "{:.2f}%"}), 
                      use_container_width=True, hide_index=True)
-    
     with col2:
         # גרף מעוצב עם צבעים לפי העליות/ירידות
         st.bar_chart(df, x='מניה', y='שינוי (%)', color='color', use_container_width=True)
