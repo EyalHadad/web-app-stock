@@ -1,0 +1,39 @@
+name: Daily Financial Agent
+
+on:
+  schedule:
+    # רץ כל בוקר ב-05:00 שעון גריניץ' (שזה 07:00 או 08:00 בבוקר שעון ישראל)
+    - cron: '0 5 * * *'
+  workflow_dispatch: # מאפשר לנו להריץ את זה ידנית מתי שבא לנו!
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # מאפשר לשרת לשמור את הקובץ החדש חזרה למאגר
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Agent
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: python agent.py
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add daily_insights.json
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update daily insights" && git push)
