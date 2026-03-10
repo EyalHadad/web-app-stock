@@ -69,7 +69,7 @@ prompt = f"""
 """
 
 # קריאה למודל (נשתמש במודל הפלאש המהיר והזול)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-1.5-pro')
 response = model.generate_content(prompt)
 
 # ניקוי התשובה (לפעמים המודל מוסיף תגיות markdown של קוד, ננקה אותן כדי שישאר רק JSON טהור)
