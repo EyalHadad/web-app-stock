@@ -4,16 +4,15 @@ import yfinance as yf
 from google import genai
 from datetime import datetime
 
-# משיכת מפתח האבטחה
 API_KEY = os.environ.get("GEMINI_API_KEY")
 if not API_KEY:
     print("Error: GEMINI_API_KEY not found.")
     exit(1)
 
-# התחברות עם הספריה החדשה
 client = genai.Client(api_key=API_KEY)
 
-symbols = ["TSLA", "GOOG", "LUMI.TA", "MRVL", "AMZN", "NLR", "RDW", "ILS=X", "EURILS=X", "DX-Y.NYB"]
+# הוספנו מדדי מאקרו (תל אביב 125, S&P 500, ומדד עולמי) רק כדי לשאוב מהם כותרות חדשות לכלכלה
+symbols = ["TSLA", "GOOG", "LUMI.TA", "MRVL", "AMZN", "NLR", "RDW", "ILS=X", "EURILS=X", "DX-Y.NYB", "^TA125.TA", "SPY", "URTH"]
 print("Fetching data from Yahoo Finance...")
 raw_data_summary = ""
 
@@ -27,46 +26,44 @@ for symbol in symbols:
             change_pct = ((last_close - prev_close) / prev_close) * 100
             raw_data_summary += f"\nSymbol: {symbol} | Last Price: {last_close:.2f} | Change: {change_pct:.2f}%\n"
         
+        # איסוף כותרות חדשות
         if "=" not in symbol and "DX" not in symbol:
             news = ticker.news
             if news:
                 raw_data_summary += "Recent News Titles:\n"
-                for item in news[:3]:
-                    # תיקון השגיאה של יאהו - שימוש ב-get כדי לא להתרסק אם חסרה כותרת
+                for item in news[:4]:
                     title = item.get('title', 'No Title Available') 
                     raw_data_summary += f"- {title}\n"
     except Exception as e:
-        print(f"Failed to fetch data for {symbol}: {e}")
+        pass
 
 print("Sending data to Gemini API for analysis...")
 
 prompt = f"""
-אתה סוכן פיננסי חכם שעוזר לי לעקוב אחרי תיק ההשקעות שלי.
-הנה הנתונים והחדשות הגולמיים של היממה האחרונה עבור המניות ושערי המט"ח שלי:
+אתה סוכן פיננסי חכם. הנה הנתונים והחדשות הגולמיים של היממה האחרונה (מניות, מט"ח, ומדדי כלכלה מישראל, ארה"ב והעולם):
 {raw_data_summary}
 
 המשימה שלך:
-1. לנתח את הנתונים ולמצוא רק דברים מעניינים באמת (זינוקים, התרסקויות, או חדשות דרמטיות). אל תדווח על תנודות שגרתיות של פחות מ-2%.
-2. להחזיר את התשובה *אך ורק* בפורמט JSON תקין (ללא טקסט מקדים או סוגר), לפי המבנה הבא:
-
+להחזיר את התשובה *אך ורק* בפורמט JSON תקין (ללא טקסט מקדים או סוגר), לפי המבנה הבא:
 {{
-  "date": "תאריך של היום",
-  "main_conclusion": "משפט אחד שמסכם את האירוע המרכזי של היום בשוק, על בסיס הנתונים.",
+  "main_conclusion": "משפט אחד מסכם.",
   "stocks": [
-    {{"symbol": "TSLA", "icon": "🚀", "insight": "סיכום קצר של למה המניה עלתה/ירדה והאם יש חדשות משמעותיות."}}
+    {{"symbol": "TSLA", "icon": "🚀", "insight": "סיכום קצר..."}}
   ],
   "macro": {{
-    "דולר-שקל": "המחיר הנוכחי ומגמה קצרה",
-    "אירו-שקל": "המחיר הנוכחי",
-    "מדד הדולר העולמי": "המחיר הנוכחי ומגמה"
-  }}
+    "דולר-שקל": {{"value": "המחיר הנוכחי במספר", "delta": "האחוז או המספר של השינוי (לדוגמה: -0.05 או 1.2%)"}},
+    "אירו-שקל": {{"value": "מחיר", "delta": "שינוי"}},
+    "מדד הדולר העולמי": {{"value": "מחיר", "delta": "שינוי"}}
+  }},
+  "economy_news": [
+    {{"region": "🇮🇱 כלכלה - ישראל", "news": "עדכון אחד מעניין מהיממה האחרונה."}},
+    {{"region": "🇺🇸 כלכלה - ארה״ב", "news": "עדכון אחד מעניין."}},
+    {{"region": "🌍 כלכלה - עולמי (ציין מדינה)", "news": "האירוע הכלכלי הכי מעניין משאר העולם."}}
+  ]
 }}
-
-חשוב: אם עבור מניה מסוימת אין שום דבר מעניין (תנודה קלה ואין חדשות מיוחדות), אל תכניס אותה בכלל למערך ה-stocks. אני רוצה לראות רק מה שדורש התייחסות.
 """
 
 try:
-    # שימוש במודל הפרו כמו שביקשת
     response = client.models.generate_content(
         model='gemini-2.5-flash',
         contents=prompt,
